@@ -4554,6 +4554,16 @@ function App() {
     { id: 'settings', label: 'Settings', icon: Save, roles: ['admin'] },
   ];
 
+  // RBAC: Ensure user has permission for the active tab
+  useEffect(() => {
+    if (user && activeTab !== 'dashboard') {
+      const allowed = menuItems.find(item => item.id === activeTab)?.roles.includes(user.role);
+      if (!allowed) {
+        setActiveTab('dashboard');
+      }
+    }
+  }, [activeTab, user]);
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* Mobile Header */}
