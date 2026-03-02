@@ -13,6 +13,7 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({ patients, onClo
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [items, setItems] = useState<BillItem[]>([{ description: '', amount: 0 }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const addItem = () => {
     setItems([...items, { description: '', amount: 0 }]);
@@ -33,8 +34,9 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({ patients, onClo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientId) return;
-    
+
     setIsSubmitting(true);
+    setError('');
     try {
       const res = await fetch('/api/bills', {
         method: 'POST',
@@ -46,14 +48,18 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({ patients, onClo
           status: 'unpaid'
         })
       });
-      
+
       if (res.ok) {
         const newBill = await res.json();
         onInvoiceCreated(newBill);
         onClose();
+      } else {
+        const data = await res.json();
+        setError(data.message || 'Failed to create invoice');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +101,7 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({ patients, onClo
                 <Plus size={16} /> Add Item
               </button>
             </div>
-            
+
             {items.map((item, index) => (
               <div key={index} className="flex gap-3 items-start">
                 <div className="flex-1">
@@ -130,6 +136,7 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({ patients, onClo
               </div>
             ))}
           </div>
+          {error && <p className="text-rose-500 text-sm font-bold py-2 text-center bg-rose-50 rounded-lg">{error}</p>}
 
           <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
             <div>

@@ -5,11 +5,11 @@ const createNotesRouter = (pool: Pool) => {
   const router = express.Router();
 
   router.post('/', async (req, res) => {
-    const { notes, patient_id, doctor_id } = req.body;
+    const { notes, patient_id, doctor_id, chief_complaint, hpi } = req.body;
     try {
       const result = await pool.query(
-        'INSERT INTO clinical_notes (notes, patient_id, doctor_id) VALUES ($1, $2, $3) RETURNING *',
-        [notes, patient_id, doctor_id]
+        'INSERT INTO clinical_notes (notes, patient_id, doctor_id, chief_complaint, hpi) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [notes, patient_id, doctor_id, chief_complaint, hpi]
       );
       res.json(result.rows[0]);
     } catch (err: any) {

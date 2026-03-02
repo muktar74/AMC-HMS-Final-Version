@@ -19,6 +19,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ patient, users, onClose, 
   const [notes, setNotes] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -39,6 +40,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ patient, users, onClose, 
     }
 
     setIsSubmitting(true);
+    setError('');
     try {
       const res = await fetch('/api/visits', {
         method: 'POST',
@@ -60,11 +62,12 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ patient, users, onClose, 
         onVisitAdded(newVisit);
         onClose();
       } else {
-        // Handle error, maybe show a toast
-        console.error('Failed to add visit');
+        const data = await res.json();
+        setError(data.message || 'Failed to add visit');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -148,6 +151,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({ patient, users, onClose, 
               placeholder="Any additional notes for this visit..."
             />
           </div>
+          {error && <p className="text-rose-500 text-sm font-bold p-2 bg-rose-50 rounded-lg text-center">{error}</p>}
           <button
             type="submit"
             disabled={isSubmitting}

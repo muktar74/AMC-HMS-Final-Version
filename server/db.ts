@@ -8,9 +8,10 @@ const dbUrl = process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString: dbUrl || 'postgresql://localhost:5432/postgres',
   ssl: dbUrl ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 10000, // 10 second timeout
+  connectionTimeoutMillis: 20000, // Increase to 20s
   idleTimeoutMillis: 30000,
-  max: 5
+  max: 20, // Increase pool size
+  keepAlive: true
 });
 
 if (!dbUrl) {

@@ -21,7 +21,19 @@ CREATE TABLE IF NOT EXISTS patients (
   address TEXT,
   contact TEXT,
   blood_group TEXT,
-  current_status TEXT DEFAULT 'registered'
+  current_status TEXT DEFAULT 'registered',
+  mrn TEXT UNIQUE, -- Medical Record Number
+  region TEXT,
+  zone_subcity TEXT,
+  woreda TEXT,
+  kebele TEXT,
+  house_number TEXT,
+  payment_type TEXT, -- 1=CBHI, 2=Credit, 3=Cash, 4=Exempted, 5=Fee
+  is_new_patient BOOLEAN DEFAULT TRUE,
+  disability_status TEXT,
+  registration_date_ec TEXT, -- Ethiopian Calendar Date
+  assigned_staff_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Create Appointments Table
@@ -47,6 +59,7 @@ CREATE TABLE IF NOT EXISTS vitals (
   respiratory_rate INTEGER,
   weight REAL,
   height REAL,
+  pulse INTEGER,
   triage_category TEXT -- green, yellow, red
 );
 
@@ -122,16 +135,39 @@ CREATE TABLE IF NOT EXISTS clinical_notes (
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   doctor_id UUID REFERENCES users(id) ON DELETE SET NULL,
   notes TEXT NOT NULL,
+  chief_complaint TEXT,
+  hpi TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create Lab Test Types Table
+-- Create Lab Test Types Table (Legacy/General)
 CREATE TABLE IF NOT EXISTS lab_test_types (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT UNIQUE NOT NULL,
   description TEXT,
   required_sample TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Master list of lab tests
+CREATE TABLE IF NOT EXISTS lab_tests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  category TEXT NOT NULL, -- Hematology, Urinalysis, etc.
+  name TEXT NOT NULL,
+  unit TEXT,
+  reference_range TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Individual items in a lab order
+CREATE TABLE IF NOT EXISTS lab_order_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID REFERENCES lab_orders(id) ON DELETE CASCADE,
+  test_id UUID REFERENCES lab_tests(id),
+  test_name TEXT, -- Denormalized for convenience
+  result TEXT,
+  status TEXT DEFAULT 'pending', -- pending, completed
+  completed_at TIMESTAMPTZ
 );
 
 -- Enable Row Level Security (RLS) for all tables
@@ -146,6 +182,9 @@ ALTER TABLE beds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clinical_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lab_tests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lab_order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lab_test_types ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for Users
 CREATE POLICY "Allow admin to manage users" ON users FOR ALL
@@ -175,6 +214,8 @@ CREATE TABLE IF NOT EXISTS visits (
   diagnosis TEXT,
   treatment TEXT,
   notes TEXT,
+  chief_complaint TEXT,
+  hpi TEXT, -- History of Present Illness
   status TEXT DEFAULT 'completed',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -218,4 +259,61 @@ CREATE POLICY "Allow anyone to view clinic info" ON clinic_info FOR SELECT
 CREATE POLICY "Allow admin to manage clinic info" ON clinic_info FOR ALL
   USING (auth.jwt()->>'role' = 'admin');
 
--- Add more RLS policies for other tables as needed, following a similar pattern.
+-- Create Referrals Table
+CREATE TABLE IF NOT EXISTS referrals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+  doctor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  referred_to TEXT NOT NULL, -- hospital name or 'abroad'
+  reason TEXT,
+  diagnosis TEXT,
+  clinical_summary TEXT,
+  treatment TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create Medical Certificates Table
+CREATE TABLE IF NOT EXISTS medical_certificates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+  doctor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  diagnosis TEXT,
+  recommendation TEXT,
+  rest_days INTEGER,
+  start_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for new tables
+ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE medical_certificates ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for Referrals
+CREATE POLICY "Allow doctors to manage referrals" ON referrals FOR ALL
+  USING (auth.jwt()->>'role' IN ('doctor', 'admin'));
+CREATE POLICY "Allow anyone to view referrals" ON referrals FOR SELECT
+  USING (true);
+
+-- RLS Policies for Medical Certificates
+CREATE POLICY "Allow doctors to manage medical certificates" ON medical_certificates FOR ALL
+  USING (auth.jwt()->>'role' IN ('doctor', 'admin'));
+CREATE POLICY "Allow anyone to view medical certificates" ON medical_certificates FOR SELECT
+  USING (true);
+
+-- RLS Policies for Lab Tests (Read-only for most, manage for admin)
+CREATE POLICY "Allow authenticated to view lab tests" ON lab_tests FOR SELECT
+  USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow admin to manage lab tests" ON lab_tests FOR ALL
+  USING (auth.jwt()->>'role' = 'admin');
+
+-- RLS Policies for Lab Order Items
+CREATE POLICY "Allow medical staff to manage lab items" ON lab_order_items FOR ALL
+  USING (auth.jwt()->>'role' IN ('doctor', 'lab_tech', 'admin'));
+CREATE POLICY "Allow authenticated to view lab items" ON lab_order_items FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- RLS Policies for Lab Test Types
+CREATE POLICY "Allow authenticated to view lab test types" ON lab_test_types FOR SELECT
+  USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow admin to manage lab test types" ON lab_test_types FOR ALL
+  USING (auth.jwt()->>'role' = 'admin');

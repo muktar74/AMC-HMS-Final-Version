@@ -13,17 +13,26 @@ interface PatientDetailViewProps {
 const PatientDetailView: React.FC<PatientDetailViewProps> = ({ patient, users, onClose }) => {
   const [patientVisits, setPatientVisits] = useState<Visit[]>(patient.visits || []);
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchVisits = async () => {
+      setLoading(true);
+      setError('');
       try {
         const res = await fetch(`/api/visits/patient/${patient.id}`);
         if (res.ok) {
           const data = await res.json();
           setPatientVisits(data);
+        } else {
+          setError('Failed to fetch patient visits');
         }
-      } catch (error) {
-        console.error('Failed to fetch patient visits:', error);
+      } catch (err: any) {
+        console.error('Failed to fetch patient visits:', err);
+        setError('Connection error while fetching visits');
+      } finally {
+        setLoading(false);
       }
     };
     fetchVisits();
@@ -35,11 +44,11 @@ const PatientDetailView: React.FC<PatientDetailViewProps> = ({ patient, users, o
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-8">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-4 md:p-8 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
           <X size={20} />
         </button>
-        <h3 className="text-2xl font-bold text-slate-800 mb-6">Patient Details: {patient.full_name}</h3>
+        <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-6">Patient Details: {patient.full_name}</h3>
 
         <div className="space-y-4 mb-6">
           <div className="grid grid-cols-2 gap-4">
@@ -72,7 +81,7 @@ const PatientDetailView: React.FC<PatientDetailViewProps> = ({ patient, users, o
 
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-xl font-bold text-slate-800">Visits</h4>
-          <button 
+          <button
             onClick={() => setIsAddVisitModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
           >
@@ -80,7 +89,20 @@ const PatientDetailView: React.FC<PatientDetailViewProps> = ({ patient, users, o
             <span>Record New Visit</span>
           </button>
         </div>
-        {patientVisits.length > 0 ? (
+
+        {loading && (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+          </div>
+        )}
+
+        {error && (
+          <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-sm font-bold text-center mb-6">
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && patientVisits.length > 0 ? (
           <div className="space-y-4">
             {patientVisits.map(visit => (
               <div key={visit.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50">
