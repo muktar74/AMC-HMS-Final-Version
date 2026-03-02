@@ -1266,6 +1266,11 @@ async function startServer() {
   });
 }
 
+if (process.env.VERCEL) {
+  // On Vercel, we don't call app.listen but we still need to init the DB
+  initDb().catch(err => console.error("Vercel DB Init Error:", err));
+}
+
 if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
   startServer();
 }
