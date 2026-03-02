@@ -215,7 +215,7 @@ app.get("/api/users/:id", async (req, res) => {
 
     res.status(404).json({ success: false, message: "User not found in Auth or Database" });
   } catch (err: any) {
-    console.error("Sync Error:", err);
+    console.error("❌ Sync Error for user " + id + ":", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -603,8 +603,8 @@ app.put("/api/inventory/:id", async (req, res) => {
   }
 });
 
-// Reports
-app.get("/api/reports/summary", async (req, res) => {
+// Stats for Dashboard
+app.get("/api/stats", async (req, res) => {
   try {
     const patientCount = await pool.query("SELECT COUNT(*) as count FROM patients");
     const appointmentCount = await pool.query("SELECT COUNT(*) as count FROM appointments WHERE date = CURRENT_DATE::text");
@@ -623,10 +623,10 @@ app.get("/api/reports/summary", async (req, res) => {
 
     res.json({
       stats: {
-        patients: parseInt(patientCount.rows[0].count),
+        totalPatients: parseInt(patientCount.rows[0].count),
         todayAppointments: parseInt(appointmentCount.rows[0].count),
         totalRevenue: parseFloat(revenue.rows[0].total) || 0,
-        pendingLabs: parseInt(labOrders.rows[0].count)
+        pendingLabOrders: parseInt(labOrders.rows[0].count)
       },
       monthlyRevenue: monthlyRevenue.rows
     });
