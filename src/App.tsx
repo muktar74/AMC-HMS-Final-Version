@@ -19,6 +19,27 @@ import { User, Role, Patient, Appointment, LabOrder, LabTest, LabOrderItem, Bed 
 import { validatePhone, validateName, validateBirthDate, validateRequired } from './utils/validation';
 
 // --- Components ---
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
+          <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md border border-slate-100">
+            <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Something went wrong</h2>
+            <p className="text-slate-500 mb-8 font-medium">The application encountered an error. Please try refreshing the page.</p>
+            <button onClick={() => window.location.reload()} className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg">Refresh App</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const Card: React.FC<{ title: string, children: React.ReactNode, className?: string }> = ({ title, children, className = '' }) => (
   <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${className}`}>
@@ -2863,7 +2884,7 @@ const BedAllocation = () => {
               <div className="flex justify-between items-start mb-2">
                 <BedIcon size={20} className={bed.status === 'occupied' ? 'text-rose-500' : 'text-emerald-500'} />
                 <Badge variant={bed.status === 'occupied' ? 'danger' : bed.status === 'maintenance' ? 'warning' : 'success'}>
-                  {bed.status.charAt(0).toUpperCase() + bed.status.slice(1)}
+                  {(bed.status || 'unknown').charAt(0).toUpperCase() + (bed.status || 'unknown').slice(1)}
                 </Badge>
               </div>
               <div className="mb-3">
@@ -3428,8 +3449,8 @@ const UserManagement = ({ user }: { user: User }) => {
 
   const filteredUsers = users.filter(u =>
     (roleFilter === 'all' || u.role === roleFilter) &&
-    (u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+    ((u.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.username || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleDelete = async (id: string) => {
@@ -4381,6 +4402,9 @@ function App() {
           })
           .finally(() => setAppLoading(false));
 
+        // Safety timeout to ensure appLoading is eventually false even if fetch hangs
+        setTimeout(() => setAppLoading(false), 5000);
+
         fetch('/api/users')
           .then(res => res.json())
           .then(data => {
@@ -4565,173 +4589,175 @@ function App() {
   }, [activeTab, user]);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      {/* Mobile Header */}
-      <header className="md:hidden bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-2 text-emerald-600">
-          <Stethoscope size={24} />
-          <span className="font-bold text-slate-900 text-sm truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
-        </div>
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg"
-        >
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </header>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+        {/* Mobile Header */}
+        <header className="md:hidden bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-emerald-600">
+            <Stethoscope size={24} />
+            <span className="font-bold text-slate-900 text-sm truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
+          </div>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </header>
 
-      {/* Sidebar Overlay */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsMenuOpen(false)}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
-          />
-        )}
-      </AnimatePresence>
+        {/* Sidebar Overlay */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
+            />
+          )}
+        </AnimatePresence>
 
-      <aside className={`
+        <aside className={`
         fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 h-full z-50 
         transition-transform duration-300 transform 
         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 md:static md:block
       `}>
-        <div className="p-6 border-b border-slate-100 hidden md:flex items-center gap-3 text-emerald-600">
-          <Stethoscope size={28} />
-          <span className="font-bold text-slate-900 truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
-        </div>
-        <div className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)] md:h-auto">
-          {menuItems.filter(item => item.roles.includes(user.role)).map(item => (
-            <SidebarItem
-              key={item.id}
-              icon={item.icon}
-              label={item.label}
-              active={activeTab === item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setIsMenuOpen(false);
-              }}
-            />
-          ))}
-        </div>
-      </aside>
-
-      <main className="flex-1 p-4 md:p-8">
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 capitalize">{activeTab.replace('_', ' ')}</h1>
+          <div className="p-6 border-b border-slate-100 hidden md:flex items-center gap-3 text-emerald-600">
+            <Stethoscope size={28} />
+            <span className="font-bold text-slate-900 truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
           </div>
-          <div className="flex items-center gap-4 relative">
-            <div className="relative">
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`flex items-center gap-3 px-3 py-2 bg-white border ${isDropdownOpen ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200'} rounded-2xl hover:bg-slate-50 transition-all text-left shadow-sm group`}
-              >
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:scale-105 transition-transform">
-                  {(user.full_name || user.username || 'U').charAt(0)}
-                </div>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-bold text-slate-900 leading-tight">{user.full_name}</p>
-                  <p className="text-[10px] font-bold text-slate-400 capitalize flex items-center gap-1 mt-0.5">
-                    <ShieldCheck size={10} className="text-emerald-500" />
-                    {user.role}
-                  </p>
-                </div>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
+          <div className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)] md:h-auto">
+            {menuItems.filter(item => item.roles.includes(user.role)).map(item => (
+              <SidebarItem
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                active={activeTab === item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsMenuOpen(false);
+                }}
+              />
+            ))}
+          </div>
+        </aside>
 
-              <AnimatePresence>
-                {isDropdownOpen && (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="fixed inset-0 z-40"
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden"
-                    >
-                      <div className="p-4 bg-slate-50 border-b border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account Info</p>
-                        <p className="text-sm font-bold text-slate-800 truncate">{user.username}</p>
-                      </div>
-                      <div className="p-2">
-                        <button
-                          onClick={() => { setIsProfileModalOpen(true); setIsDropdownOpen(false); }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors group"
-                        >
-                          <UserCircle size={18} className="text-slate-400 group-hover:text-emerald-500" />
-                          <span>View Profile</span>
-                        </button>
-                        {user.role === 'admin' && (
-                          <button
-                            onClick={() => { setActiveTab('settings'); setIsDropdownOpen(false); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors group"
-                          >
-                            <Settings size={18} className="text-slate-400 group-hover:text-blue-500" />
-                            <span>Clinic Settings</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="p-2 border-t border-slate-50 bg-slate-50/50">
-                        <button
-                          onClick={() => { setIsLogoutModalOpen(true); setIsDropdownOpen(false); }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-100 rounded-xl transition-colors"
-                        >
-                          <LogOut size={18} />
-                          <span>Sign Out</span>
-                        </button>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+        <main className="flex-1 p-4 md:p-8">
+          <header className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 capitalize">{activeTab.replace('_', ' ')}</h1>
             </div>
-          </div>
-        </header>
+            <div className="flex items-center gap-4 relative">
+              <div className="relative">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className={`flex items-center gap-3 px-3 py-2 bg-white border ${isDropdownOpen ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200'} rounded-2xl hover:bg-slate-50 transition-all text-left shadow-sm group`}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:scale-105 transition-transform">
+                    {(user.full_name || user.username || 'U').charAt(0)}
+                  </div>
+                  <div className="hidden sm:block">
+                    <p className="text-sm font-bold text-slate-900 leading-tight">{user.full_name}</p>
+                    <p className="text-[10px] font-bold text-slate-400 capitalize flex items-center gap-1 mt-0.5">
+                      <ShieldCheck size={10} className="text-emerald-500" />
+                      {user.role}
+                    </p>
+                  </div>
+                  <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-        <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          {activeTab === 'dashboard' && <Dashboard user={user!} setActiveTab={setActiveTab} patients={patients} users={users} />}
-          {activeTab === 'patients' && <PatientRecords user={user!} users={users} patients={patients} refreshPatients={refreshPatients} />}
-          {activeTab === 'appointments' && <AppointmentScheduling user={user} users={users} />}
-          {activeTab === 'lab' && <LabTechnicianView user={user} />}
-          {activeTab === 'pharmacy' && <PharmacistView user={user} />}
-          {activeTab === 'billing' && <BillingView />}
-          {activeTab === 'beds' && <BedAllocation />}
-          {activeTab === 'users' && <UserManagement user={user} />}
-          {activeTab === 'reports' && <ReportsView />}
-          {activeTab === 'tasks' && <TasksView user={user} />}
-          {activeTab === 'settings' && <ClinicSettings />}
-        </motion.div>
-      </main>
-
-      <AnimatePresence>
-        {isLogoutModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLogoutModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Confirm Sign Out</h3>
-              <p className="text-slate-500 mb-6">Are you sure you want to sign out of your account?</p>
-              <div className="flex gap-3">
-                <button onClick={() => setIsLogoutModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button onClick={handleLogout} className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700">Sign Out</button>
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="fixed inset-0 z-40"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden"
+                      >
+                        <div className="p-4 bg-slate-50 border-b border-slate-100">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account Info</p>
+                          <p className="text-sm font-bold text-slate-800 truncate">{user.username}</p>
+                        </div>
+                        <div className="p-2">
+                          <button
+                            onClick={() => { setIsProfileModalOpen(true); setIsDropdownOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors group"
+                          >
+                            <UserCircle size={18} className="text-slate-400 group-hover:text-emerald-500" />
+                            <span>View Profile</span>
+                          </button>
+                          {user.role === 'admin' && (
+                            <button
+                              onClick={() => { setActiveTab('settings'); setIsDropdownOpen(false); }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors group"
+                            >
+                              <Settings size={18} className="text-slate-400 group-hover:text-blue-500" />
+                              <span>Clinic Settings</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="p-2 border-t border-slate-50 bg-slate-50/50">
+                          <button
+                            onClick={() => { setIsLogoutModalOpen(true); setIsDropdownOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-100 rounded-xl transition-colors"
+                          >
+                            <LogOut size={18} />
+                            <span>Sign Out</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
-            </motion.div>
-          </div>
-        )}
-        {isProfileModalOpen && (
-          <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={setUser} />
-        )}
-      </AnimatePresence>
-    </div>
+            </div>
+          </header>
+
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            {activeTab === 'dashboard' && <Dashboard user={user!} setActiveTab={setActiveTab} patients={patients} users={users} />}
+            {activeTab === 'patients' && <PatientRecords user={user!} users={users} patients={patients} refreshPatients={refreshPatients} />}
+            {activeTab === 'appointments' && <AppointmentScheduling user={user} users={users} />}
+            {activeTab === 'lab' && <LabTechnicianView user={user} />}
+            {activeTab === 'pharmacy' && <PharmacistView user={user} />}
+            {activeTab === 'billing' && <BillingView />}
+            {activeTab === 'beds' && <BedAllocation />}
+            {activeTab === 'users' && <UserManagement user={user} />}
+            {activeTab === 'reports' && <ReportsView />}
+            {activeTab === 'tasks' && <TasksView user={user} />}
+            {activeTab === 'settings' && <ClinicSettings />}
+          </motion.div>
+        </main>
+
+        <AnimatePresence>
+          {isLogoutModalOpen && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLogoutModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Confirm Sign Out</h3>
+                <p className="text-slate-500 mb-6">Are you sure you want to sign out of your account?</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setIsLogoutModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+                  <button onClick={handleLogout} className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700">Sign Out</button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+          {isProfileModalOpen && (
+            <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={setUser} />
+          )}
+        </AnimatePresence>
+      </div>
+    </ErrorBoundary>
   );
 }
 
