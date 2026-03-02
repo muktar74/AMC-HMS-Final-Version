@@ -2218,7 +2218,7 @@ const AppointmentScheduling = ({ user, users }: { user: User, users: User[] }) =
               {doctors.map(doctor => (
                 <div key={doctor.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
-                    {doctor.full_name.charAt(0)}
+                    {(doctor.full_name || 'U').charAt(0)}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-slate-800">Dr. {doctor.full_name}</p>
@@ -2327,7 +2327,7 @@ const Dashboard = ({ user, setActiveTab, patients, users }: { user: User, setAct
                     <div key={p.id} className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 hover:bg-emerald-50 transition-colors group">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                          {p.full_name.charAt(0)}
+                          {(p.full_name || 'P').charAt(0)}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800">{p.full_name}</p>
@@ -4631,7 +4631,7 @@ function App() {
                 className={`flex items-center gap-3 px-3 py-2 bg-white border ${isDropdownOpen ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200'} rounded-2xl hover:bg-slate-50 transition-all text-left shadow-sm group`}
               >
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:scale-105 transition-transform">
-                  {user.full_name.charAt(0)}
+                  {(user.full_name || user.username || 'U').charAt(0)}
                 </div>
                 <div className="hidden sm:block">
                   <p className="text-sm font-bold text-slate-900 leading-tight">{user.full_name}</p>

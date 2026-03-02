@@ -196,8 +196,8 @@ app.get("/api/users/:id", async (req, res) => {
       const emailCheck = await pool.query("SELECT * FROM users WHERE username = $1", [authUser.email]);
 
       if (emailCheck.rows.length > 0) {
-        // Update the existing record with the new Supabase ID
-        await pool.query("UPDATE users SET id = $1 WHERE username = $2", [id, authUser.email]);
+        // Update the existing record with the new Supabase ID and ensure full_name is set
+        await pool.query("UPDATE users SET id = $1, full_name = COALESCE(full_name, $2) WHERE username = $3", [id, authUser.email?.split('@')[0] || 'User', authUser.email]);
       } else {
         // Create a new record
         // Default role is doctor, except for the very first user or specific emails
