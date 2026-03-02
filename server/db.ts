@@ -20,8 +20,17 @@ if (!dbUrl) {
 
 // Test connection on startup
 pool.query('SELECT 1')
-  .then(() => console.log('✅ Database connected successfully'))
-  .catch((err: Error) => console.error('❌ Database connection failed:', err.message));
+  .then(() => {
+    console.log('✅ Database connected successfully');
+    if (dbUrl) {
+      const url = new URL(dbUrl);
+      console.log(`📡 Connected to: ${url.hostname}`);
+    }
+  })
+  .catch((err: Error) => {
+    console.error('❌ Database connection failed:', err.message);
+    console.error('🔍 Full Error:', err);
+  });
 
 export const query = (text: string, params?: any[]) => pool.query(text, params);
 export default pool;

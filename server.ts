@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
@@ -9,6 +12,12 @@ import createNotesRouter from './server/routes/notes';
 import { createClient } from '@supabase/supabase-js';
 import compression from 'compression';
 import helmet from 'helmet';
+
+console.log('🚀 Server starting...');
+if (process.env.VERCEL) {
+  console.log('🌐 Running in VERCEL environment');
+}
+console.log('🔑 DATABASE_URL is ' + (process.env.DATABASE_URL ? 'PRESENT' : 'MISSING'));
 
 // Supabase Admin Client (service role for server-side user management)
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
@@ -54,7 +63,11 @@ const labTestsSeed = [
 ];
 
 async function initDb() {
-  if (!process.env.DATABASE_URL) return;
+  if (!process.env.DATABASE_URL) {
+    console.error("❌ Cannot initialize database: DATABASE_URL is missing!");
+    return;
+  }
+  console.log("🔄 Starting database initialization...");
   try {
     // Optimization: Only run full schema if users table doesn't exist or is empty
     const checkUsers = await pool.query("SELECT 1 FROM information_schema.tables WHERE table_name = 'users'").catch(() => ({ rows: [] }));
@@ -1268,7 +1281,8 @@ async function startServer() {
 
 if (process.env.VERCEL) {
   // On Vercel, we don't call app.listen but we still need to init the DB
-  initDb().catch(err => console.error("Vercel DB Init Error:", err));
+  console.log("⚡ VITE_SUPABASE_URL: " + (process.env.VITE_SUPABASE_URL ? 'SET' : 'NOT SET'));
+  initDb().then(() => console.log("✅ Vercel DB Init Complete")).catch(err => console.error("❌ Vercel DB Init Error:", err));
 }
 
 if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
