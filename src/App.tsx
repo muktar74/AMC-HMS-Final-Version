@@ -4557,8 +4557,8 @@ function App() {
   // RBAC: Ensure user has permission for the active tab
   useEffect(() => {
     if (user && activeTab !== 'dashboard') {
-      const allowed = menuItems.find(item => item.id === activeTab)?.roles.includes(user.role);
-      if (!allowed) {
+      const allowed = menuItems.find(item => item.id === activeTab)?.roles?.includes(user.role);
+      if (allowed === false) { // Only redirect if we explicitly know they ARE NOT allowed
         setActiveTab('dashboard');
       }
     }
