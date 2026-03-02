@@ -2300,7 +2300,13 @@ const Dashboard = ({ user, setActiveTab, patients, users }: { user: User, setAct
   useEffect(() => {
     fetch('/api/stats')
       .then(res => res.json())
-      .then(data => setStats(data))
+      .then(data => {
+        if (data.stats) {
+          setStats(data.stats);
+        } else {
+          setStats(data); // Fallback for old format
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
 
@@ -4402,9 +4408,11 @@ function App() {
         fetch(`/api/users/${session.user.id}`)
           .then(res => res.json())
           .then(data => {
-            if (data.user) {
+            console.log("👤 Fetched user profile:", data);
+            if (data.success && data.user) {
               setUser(data.user);
             } else {
+              console.warn("⚠️ User not found in DB, using fallback profile");
               setUser({
                 id: session.user.id,
                 username: session.user.email || 'unknown',
