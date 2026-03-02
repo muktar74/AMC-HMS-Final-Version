@@ -48,7 +48,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    return (this.props as any).children;
+    return this.props.children;
   }
 }
 
@@ -1809,7 +1809,7 @@ const ProfileModal = ({ user, onClose, onUpdate }: { user: User, onClose: () => 
   );
 };
 
-const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User, users: User[], patients: Patient[], refreshPatients: () => void }) => {
+const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User, users: User[], patients: Patient[], refreshPatients: () => Promise<Patient[]> }) => {
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -1830,6 +1830,7 @@ const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User
   useEffect(() => {
     refreshPatients();
   }, [statusFilter]);
+
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -1862,6 +1863,7 @@ const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User
         body: JSON.stringify(formData)
       });
       if (res.ok) {
+        const result = await res.json();
         setIsModalOpen(false);
         setFormData({
           full_name: '', dob: '', gender: 'male', address: '', contact: '', blood_group: 'O+',
@@ -1869,10 +1871,16 @@ const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User
           payment_type: '3', is_new_patient: true, disability_status: 'None', registration_date_ec: ''
         });
         setErrors({});
-        refreshPatients();
-        // The newly registered patient will be at the top after refresh
-        const newPatient = patients[0];
-        if (newPatient) setSelectedPatientForRoute(newPatient);
+        const updatedPatients = await refreshPatients();
+
+        // Find the specific patient we just added to properly route them
+        const newPatient = updatedPatients.find(p => p.id === result.id);
+        if (newPatient) {
+          setSelectedPatientForRoute(newPatient);
+        } else if (updatedPatients.length > 0) {
+          // Fallback to top patient if ID match fails (shouldn't happen with correct API)
+          setSelectedPatientForRoute(updatedPatients[0]);
+        }
       } else {
         const errorData = await res.json();
         setError(errorData.message || 'Failed to register patient. Please check database connection.');
@@ -1887,13 +1895,24 @@ const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User
 
   const [selectedPatientForRoute, setSelectedPatientForRoute] = useState<Patient | null>(null);
 
-  const filteredPatients = patients.filter(patient =>
-    (statusFilter === 'all' || patient.current_status === statusFilter) &&
-    (!myPatientsOnly || patient.assigned_staff_id === user.id) &&
-    (patient.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredPatients = patients.filter(patient => {
+    const statusMatch = (statusFilter === 'all' || patient.current_status === statusFilter);
+    const staffMatch = (!myPatientsOnly || patient.assigned_staff_id === user.id);
+    const searchMatch = (patient.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.contact.includes(searchTerm) ||
-      (patient.id && patient.id.toString().includes(searchTerm)))
-  );
+      (patient.id && patient.id.toString().includes(searchTerm)));
+
+    // Log failures to help debug display issues
+    if (!statusMatch || !staffMatch || !searchMatch) {
+      // console.log(`[DEBUG] Patient ${patient.full_name} hidden: statusMatch=${statusMatch}, staffMatch=${staffMatch}, searchMatch=${searchMatch}`);
+    }
+
+    return statusMatch && staffMatch && searchMatch;
+  });
+
+  if (patients.length > 0 && filteredPatients.length === 0) {
+    console.warn("[DEBUG] Patients exist but ALL were FILTERED OUT!");
+  }
 
   return (
     <div className="space-y-6">
@@ -2058,7 +2077,8 @@ const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase">Region</label>
-                      <input type="text" placeholder="Region" value={formData.region} onChange={e => setFormData({ ...formData, region: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200" />
+                      <input type="text" placeholder="Region" value={formData.region} onChange={e => setFormData({ ...formData, region: e.target.value })} className={`w-full px-3 py-2 rounded-lg border ${errors.region ? 'border-rose-500' : 'border-slate-200'}`} />
+                      {errors.region && <p className="text-rose-500 text-[10px] mt-0.5">{errors.region}</p>}
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase">Zone/Sub-city</label>
@@ -2066,11 +2086,13 @@ const PatientRecords = ({ user, users, patients, refreshPatients }: { user: User
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase">Woreda</label>
-                      <input type="text" placeholder="Woreda" value={formData.woreda} onChange={e => setFormData({ ...formData, woreda: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200" />
+                      <input type="text" placeholder="Woreda" value={formData.woreda} onChange={e => setFormData({ ...formData, woreda: e.target.value })} className={`w-full px-3 py-2 rounded-lg border ${errors.woreda ? 'border-rose-500' : 'border-slate-200'}`} />
+                      {errors.woreda && <p className="text-rose-500 text-[10px] mt-0.5">{errors.woreda}</p>}
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase">Kebele</label>
-                      <input type="text" placeholder="Kebele" value={formData.kebele} onChange={e => setFormData({ ...formData, kebele: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200" />
+                      <input type="text" placeholder="Kebele" value={formData.kebele} onChange={e => setFormData({ ...formData, kebele: e.target.value })} className={`w-full px-3 py-2 rounded-lg border ${errors.kebele ? 'border-rose-500' : 'border-slate-200'}`} />
+                      {errors.kebele && <p className="text-rose-500 text-[10px] mt-0.5">{errors.kebele}</p>}
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase">House No.</label>
@@ -4470,11 +4492,17 @@ function App() {
     setIsMenuOpen(false);
   };
 
-  const refreshPatients = () => {
-    fetch('/api/patients')
-      .then(res => res.json())
-      .then(data => setPatients(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error refreshing patients:', err));
+  const refreshPatients = async () => {
+    try {
+      const res = await fetch('/api/patients');
+      const data = await res.json();
+      const patientList = Array.isArray(data) ? data : [];
+      setPatients(patientList);
+      return patientList;
+    } catch (err) {
+      console.error('Error refreshing patients:', err);
+      return [];
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {

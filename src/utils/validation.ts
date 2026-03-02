@@ -5,8 +5,8 @@ export const validatePhone = (phone: string) => {
 };
 
 export const validateName = (name: string) => {
-  // Only letters and spaces
-  const regex = /^[A-Za-z\s]+$/;
+  // Letters, spaces, dots, and hyphens
+  const regex = /^[A-Za-z\s\.\-]+$/;
   return regex.test(name);
 };
 
