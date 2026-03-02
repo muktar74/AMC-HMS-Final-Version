@@ -19,9 +19,20 @@ import { User, Role, Patient, Appointment, LabOrder, LabTest, LabOrderItem, Bed 
 import { validatePhone, validateName, validateBirthDate, validateRequired } from './utils/validation';
 
 // --- Components ---
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
   render() {
     if (this.state.hasError) {
       return (
@@ -40,6 +51,19 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     return this.props.children;
   }
 }
+
+const menuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_tech'] },
+  { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
+  { id: 'appointments', label: 'Appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist'] },
+  { id: 'lab', label: 'Lab Orders', icon: FlaskConical, roles: ['admin', 'doctor', 'lab_tech'] },
+  { id: 'pharmacy', label: 'Pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'] },
+  { id: 'billing', label: 'Billing', icon: CreditCard, roles: ['admin', 'receptionist', 'cashier'] },
+  { id: 'beds', label: 'Bed Management', icon: BedIcon, roles: ['admin', 'nurse', 'receptionist'] },
+  { id: 'reports', label: 'Reports', icon: FileText, roles: ['admin'] },
+  { id: 'users', label: 'Users', icon: UserCircle, roles: ['admin'] },
+  { id: 'settings', label: 'Settings', icon: Save, roles: ['admin'] },
+];
 
 const Card: React.FC<{ title: string, children: React.ReactNode, className?: string }> = ({ title, children, className = '' }) => (
   <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${className}`}>
@@ -4474,110 +4498,6 @@ function App() {
     }
   };
 
-  if (appLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-            className="text-emerald-600 mb-6 flex justify-center"
-          >
-            <Stethoscope size={64} strokeWidth={1.5} />
-          </motion.div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Africa Medium Clinic</h2>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" />
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
-            </div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4">Initializing Health System</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <>
-        <LandingPage onLoginClick={() => setIsLoginModalOpen(true)} clinicInfo={clinicInfo} />
-        <AnimatePresence>
-          {isLoginModalOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
-                <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-slate-800">{clinicInfo?.name || 'Africa Medium Clinic'}</h3>
-                  <p className="text-slate-500">Portal Login</p>
-                </div>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <input type="text" placeholder="Username" value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200" />
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Password"
-                      value={loginData.password}
-                      onChange={e => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 pr-12"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-emerald-600 transition-colors"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                  <div className="flex justify-end">
-                    <button type="button" onClick={() => { setIsLoginModalOpen(false); setIsForgotPasswordModalOpen(true); }} className="text-sm text-emerald-600 font-medium hover:underline">
-                      Forgot Password?
-                    </button>
-                  </div>
-                  {loginError && <p className="text-rose-500 text-sm font-bold">{loginError}</p>}
-                  <button
-                    type="submit"
-                    disabled={loggingIn || !loginData.username.trim() || !loginData.password.trim()}
-                    className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loggingIn ? (
-                      <>
-                        <Clock className="animate-spin" size={20} />
-                        <span>Logging in...</span>
-                      </>
-                    ) : (
-                      'Login'
-                    )}
-                  </button>
-                </form>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {isForgotPasswordModalOpen && (
-            <ForgotPasswordModal onClose={() => setIsForgotPasswordModalOpen(false)} />
-          )}
-        </AnimatePresence>
-      </>
-    );
-  }
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_tech'] },
-    { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'doctor', 'nurse', 'receptionist'] },
-    { id: 'appointments', label: 'Appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist'] },
-    { id: 'lab', label: 'Lab Orders', icon: FlaskConical, roles: ['admin', 'doctor', 'lab_tech'] },
-    { id: 'pharmacy', label: 'Pharmacy', icon: Pill, roles: ['admin', 'pharmacist', 'doctor'] },
-    { id: 'billing', label: 'Billing', icon: CreditCard, roles: ['admin', 'receptionist', 'cashier'] },
-    { id: 'beds', label: 'Bed Management', icon: BedIcon, roles: ['admin', 'nurse', 'receptionist'] },
-    { id: 'reports', label: 'Reports', icon: FileText, roles: ['admin'] },
-    { id: 'users', label: 'Users', icon: UserCircle, roles: ['admin'] },
-    { id: 'settings', label: 'Settings', icon: Save, roles: ['admin'] },
-  ];
-
   // RBAC: Ensure user has permission for the active tab
   useEffect(() => {
     if (user && activeTab !== 'dashboard') {
@@ -4590,172 +4510,238 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-        {/* Mobile Header */}
-        <header className="md:hidden bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-2 text-emerald-600">
-            <Stethoscope size={24} />
-            <span className="font-bold text-slate-900 text-sm truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
-          </div>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg"
-          >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </header>
+      <div className="min-h-screen bg-slate-50">
+        {!user ? (
+          <>
+            <LandingPage onLoginClick={() => setIsLoginModalOpen(true)} clinicInfo={clinicInfo} />
+            <AnimatePresence>
+              {isLoginModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+                    <div className="text-center mb-6">
+                      <h3 className="text-2xl font-bold text-slate-800">{clinicInfo?.name || 'Africa Medium Clinic'}</h3>
+                      <p className="text-slate-500">Portal Login</p>
+                    </div>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                      <input type="text" placeholder="Username" value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200" />
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Password"
+                          value={loginData.password}
+                          onChange={e => setLoginData({ ...loginData, password: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 pr-12"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-emerald-600 transition-colors"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
+                      <div className="flex justify-end">
+                        <button type="button" onClick={() => { setIsLoginModalOpen(false); setIsForgotPasswordModalOpen(true); }} className="text-sm text-emerald-600 font-medium hover:underline">
+                          Forgot Password?
+                        </button>
+                      </div>
+                      {loginError && <p className="text-rose-500 text-sm font-bold">{loginError}</p>}
+                      <button
+                        type="submit"
+                        disabled={loggingIn || !loginData.username.trim() || !loginData.password.trim()}
+                        className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {loggingIn ? (
+                          <>
+                            <Clock className="animate-spin" size={20} />
+                            <span>Logging in...</span>
+                          </>
+                        ) : (
+                          'Login'
+                        )}
+                      </button>
+                    </form>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {isForgotPasswordModalOpen && (
+                <ForgotPasswordModal onClose={() => setIsForgotPasswordModalOpen(false)} />
+              )}
+            </AnimatePresence>
+          </>
+        ) : (
+          <div className="flex flex-col md:flex-row min-h-screen">
+            {/* Mobile Header */}
+            <header className="md:hidden bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-30">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <Stethoscope size={24} />
+                <span className="font-bold text-slate-900 text-sm truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg"
+              >
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </header>
 
-        {/* Sidebar Overlay */}
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMenuOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
-            />
-          )}
-        </AnimatePresence>
+            {/* Sidebar Overlay */}
+            <AnimatePresence>
+              {isMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
+                />
+              )}
+            </AnimatePresence>
 
-        <aside className={`
+            <aside className={`
         fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 h-full z-50 
         transition-transform duration-300 transform 
         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 md:static md:block
       `}>
-          <div className="p-6 border-b border-slate-100 hidden md:flex items-center gap-3 text-emerald-600">
-            <Stethoscope size={28} />
-            <span className="font-bold text-slate-900 truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
-          </div>
-          <div className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)] md:h-auto">
-            {menuItems.filter(item => item.roles.includes(user.role)).map(item => (
-              <SidebarItem
-                key={item.id}
-                icon={item.icon}
-                label={item.label}
-                active={activeTab === item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setIsMenuOpen(false);
-                }}
-              />
-            ))}
-          </div>
-        </aside>
-
-        <main className="flex-1 p-4 md:p-8">
-          <header className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 capitalize">{activeTab.replace('_', ' ')}</h1>
-            </div>
-            <div className="flex items-center gap-4 relative">
-              <div className="relative">
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`flex items-center gap-3 px-3 py-2 bg-white border ${isDropdownOpen ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200'} rounded-2xl hover:bg-slate-50 transition-all text-left shadow-sm group`}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:scale-105 transition-transform">
-                    {(user.full_name || user.username || 'U').charAt(0)}
-                  </div>
-                  <div className="hidden sm:block">
-                    <p className="text-sm font-bold text-slate-900 leading-tight">{user.full_name}</p>
-                    <p className="text-[10px] font-bold text-slate-400 capitalize flex items-center gap-1 mt-0.5">
-                      <ShieldCheck size={10} className="text-emerald-500" />
-                      {user.role}
-                    </p>
-                  </div>
-                  <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                <AnimatePresence>
-                  {isDropdownOpen && (
-                    <>
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="fixed inset-0 z-40"
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden"
-                      >
-                        <div className="p-4 bg-slate-50 border-b border-slate-100">
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account Info</p>
-                          <p className="text-sm font-bold text-slate-800 truncate">{user.username}</p>
-                        </div>
-                        <div className="p-2">
-                          <button
-                            onClick={() => { setIsProfileModalOpen(true); setIsDropdownOpen(false); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors group"
-                          >
-                            <UserCircle size={18} className="text-slate-400 group-hover:text-emerald-500" />
-                            <span>View Profile</span>
-                          </button>
-                          {user.role === 'admin' && (
-                            <button
-                              onClick={() => { setActiveTab('settings'); setIsDropdownOpen(false); }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors group"
-                            >
-                              <Settings size={18} className="text-slate-400 group-hover:text-blue-500" />
-                              <span>Clinic Settings</span>
-                            </button>
-                          )}
-                        </div>
-                        <div className="p-2 border-t border-slate-50 bg-slate-50/50">
-                          <button
-                            onClick={() => { setIsLogoutModalOpen(true); setIsDropdownOpen(false); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-100 rounded-xl transition-colors"
-                          >
-                            <LogOut size={18} />
-                            <span>Sign Out</span>
-                          </button>
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+              <div className="p-6 border-b border-slate-100 hidden md:flex items-center gap-3 text-emerald-600">
+                <Stethoscope size={28} />
+                <span className="font-bold text-slate-900 truncate">{clinicInfo?.name || 'Africa Medium Clinic'}</span>
               </div>
-            </div>
-          </header>
+              <div className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)] md:h-auto">
+                {menuItems.filter(item => item.roles.includes(user.role)).map(item => (
+                  <SidebarItem
+                    key={item.id}
+                    icon={item.icon}
+                    label={item.label}
+                    active={activeTab === item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMenuOpen(false);
+                    }}
+                  />
+                ))}
+              </div>
+            </aside>
 
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            {activeTab === 'dashboard' && <Dashboard user={user!} setActiveTab={setActiveTab} patients={patients} users={users} />}
-            {activeTab === 'patients' && <PatientRecords user={user!} users={users} patients={patients} refreshPatients={refreshPatients} />}
-            {activeTab === 'appointments' && <AppointmentScheduling user={user} users={users} />}
-            {activeTab === 'lab' && <LabTechnicianView user={user} />}
-            {activeTab === 'pharmacy' && <PharmacistView user={user} />}
-            {activeTab === 'billing' && <BillingView />}
-            {activeTab === 'beds' && <BedAllocation />}
-            {activeTab === 'users' && <UserManagement user={user} />}
-            {activeTab === 'reports' && <ReportsView />}
-            {activeTab === 'tasks' && <TasksView user={user} />}
-            {activeTab === 'settings' && <ClinicSettings />}
-          </motion.div>
-        </main>
-
-        <AnimatePresence>
-          {isLogoutModalOpen && (
-            <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLogoutModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Confirm Sign Out</h3>
-                <p className="text-slate-500 mb-6">Are you sure you want to sign out of your account?</p>
-                <div className="flex gap-3">
-                  <button onClick={() => setIsLogoutModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                  <button onClick={handleLogout} className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700">Sign Out</button>
+            <main className="flex-1 p-4 md:p-8">
+              <header className="flex justify-between items-center mb-8">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 capitalize">{activeTab.replace('_', ' ')}</h1>
                 </div>
+                <div className="flex items-center gap-4 relative">
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className={`flex items-center gap-3 px-3 py-2 bg-white border ${isDropdownOpen ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200'} rounded-2xl hover:bg-slate-50 transition-all text-left shadow-sm group`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold group-hover:scale-105 transition-transform">
+                        {(user.full_name || user.username || 'U').charAt(0)}
+                      </div>
+                      <div className="hidden sm:block">
+                        <p className="text-sm font-bold text-slate-900 leading-tight">{user.full_name}</p>
+                        <p className="text-[10px] font-bold text-slate-400 capitalize flex items-center gap-1 mt-0.5">
+                          <ShieldCheck size={10} className="text-emerald-500" />
+                          {user.role}
+                        </p>
+                      </div>
+                      <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isDropdownOpen && (
+                        <>
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="fixed inset-0 z-40"
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden"
+                          >
+                            <div className="p-4 bg-slate-50 border-b border-slate-100">
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Account Info</p>
+                              <p className="text-sm font-bold text-slate-800 truncate">{user.username}</p>
+                            </div>
+                            <div className="p-2">
+                              <button
+                                onClick={() => { setIsProfileModalOpen(true); setIsDropdownOpen(false); }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors group"
+                              >
+                                <UserCircle size={18} className="text-slate-400 group-hover:text-emerald-500" />
+                                <span>View Profile</span>
+                              </button>
+                              {user.role === 'admin' && (
+                                <button
+                                  onClick={() => { setActiveTab('settings'); setIsDropdownOpen(false); }}
+                                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors group"
+                                >
+                                  <Settings size={18} className="text-slate-400 group-hover:text-blue-500" />
+                                  <span>Clinic Settings</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="p-2 border-t border-slate-50 bg-slate-50/50">
+                              <button
+                                onClick={() => { setIsLogoutModalOpen(true); setIsDropdownOpen(false); }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-100 rounded-xl transition-colors"
+                              >
+                                <LogOut size={18} />
+                                <span>Sign Out</span>
+                              </button>
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </header>
+
+              <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                {activeTab === 'dashboard' && <Dashboard user={user!} setActiveTab={setActiveTab} patients={patients} users={users} />}
+                {activeTab === 'patients' && <PatientRecords user={user!} users={users} patients={patients} refreshPatients={refreshPatients} />}
+                {activeTab === 'appointments' && <AppointmentScheduling user={user} users={users} />}
+                {activeTab === 'lab' && <LabTechnicianView user={user} />}
+                {activeTab === 'pharmacy' && <PharmacistView user={user} />}
+                {activeTab === 'billing' && <BillingView />}
+                {activeTab === 'beds' && <BedAllocation />}
+                {activeTab === 'users' && <UserManagement user={user} />}
+                {activeTab === 'reports' && <ReportsView />}
+                {activeTab === 'tasks' && <TasksView user={user} />}
+                {activeTab === 'settings' && <ClinicSettings />}
               </motion.div>
-            </div>
-          )}
-          {isProfileModalOpen && (
-            <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={setUser} />
-          )}
-        </AnimatePresence>
+            </main>
+
+            <AnimatePresence>
+              {isLogoutModalOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLogoutModalOpen(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">Confirm Sign Out</h3>
+                    <p className="text-slate-500 mb-6">Are you sure you want to sign out of your account?</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => setIsLogoutModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+                      <button onClick={handleLogout} className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700">Sign Out</button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+              {isProfileModalOpen && (
+                <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={setUser} />
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );
