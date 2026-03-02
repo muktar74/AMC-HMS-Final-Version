@@ -178,13 +178,44 @@ app.post("/api/reset-password", async (req, res) => {
 app.get("/api/users/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT id, username, role, full_name, contact FROM users WHERE id = $1", [id]);
+    // 1. Try to find user in our Postgres DB
+    let result = await pool.query("SELECT id, username, role, full_name, contact FROM users WHERE id = $1", [id]);
+
     if (result.rows.length > 0) {
-      res.json({ success: true, user: result.rows[0] });
-    } else {
-      res.status(404).json({ success: false, message: "User not found" });
+      return res.json({ success: true, user: result.rows[0] });
     }
+
+    // 2. If not found, check if they exist in Supabase Auth (Lazy Provisioning)
+    console.log(`🔍 User ${id} not in Postgres. Checking Supabase Auth...`);
+    const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.admin.getUserById(id);
+
+    if (authUser && !authError) {
+      console.log(`✨ Found user ${authUser.email} in Supabase Auth. Syncing to Postgres...`);
+
+      // Check if a user with this email already exists but with a different ID (e.g. from a local test)
+      const emailCheck = await pool.query("SELECT * FROM users WHERE username = $1", [authUser.email]);
+
+      if (emailCheck.rows.length > 0) {
+        // Update the existing record with the new Supabase ID
+        await pool.query("UPDATE users SET id = $1 WHERE username = $2", [id, authUser.email]);
+      } else {
+        // Create a new record
+        // Default role is doctor, except for the very first user or specific emails
+        const role = authUser.email?.includes('admin') ? 'admin' : 'doctor';
+        await pool.query(
+          "INSERT INTO users (id, username, password, role, full_name) VALUES ($1, $2, $3, $4, $5)",
+          [id, authUser.email, 'supabase_auth', role, authUser.user_metadata?.full_name || authUser.email?.split('@')[0]]
+        );
+      }
+
+      // Fetch again to return the newly synced user
+      const finalResult = await pool.query("SELECT id, username, role, full_name, contact FROM users WHERE id = $1", [id]);
+      return res.json({ success: true, user: finalResult.rows[0] });
+    }
+
+    res.status(404).json({ success: false, message: "User not found in Auth or Database" });
   } catch (err: any) {
+    console.error("Sync Error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
